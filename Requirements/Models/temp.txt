@@ -1,0 +1,7 @@
+In this folder you should include the following models:
+added_IVF963_Flat_nprobe_1_justhire_v3_v2.index
+vox-adv-cpk.pth.tar
+Models_gender
+
+### justhire_v3.pth voice model should be located at Voice/assets/weights
+### Also you need to run python Voice/tools/download_models.py

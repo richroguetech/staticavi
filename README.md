@@ -1,1 +1,1 @@
-# staticavi
+# justhireai
