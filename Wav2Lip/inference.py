@@ -26,7 +26,7 @@ parser.add_argument('--face', type=str,
 parser.add_argument('--audio', type=str, 
                     help='Filepath of video/audio file to use as raw audio source', required=True)
 parser.add_argument('--outfile', type=str, help='Video path to save result. See default for an e.g.', 
-                                default='results/result_voice.mp4')
+                                default='results/final_output.mp4')
 
 parser.add_argument('--static', type=bool, 
                     help='If True, then use only first video frame for inference', default=False)
@@ -251,11 +251,13 @@ def main():
 
     s = time()
 
-    for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen,
-                                            total=int(np.ceil(float(len(mel_chunks))/batch_size)))):
+    base_name = os.path.splitext(os.path.basename(args.outfile))[0].split("_")[0]
+    print(base_name)
+
+    for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen, total=int(np.ceil(float(len(mel_chunks))/batch_size)))):
         if i == 0:
             frame_h, frame_w = full_frames[0].shape[:-1]
-            out = cv2.VideoWriter('temp/result.avi',
+            out = cv2.VideoWriter('temp/'+str(base_name)+'-result.avi',
                                     cv2.VideoWriter_fourcc(*'DIVX'), fps, (frame_w, frame_h))
 
         img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(device)
@@ -280,7 +282,7 @@ def main():
     subprocess.check_call([
         "ffmpeg", "-y",
         # "-vsync", "0", "-hwaccel", "cuda", "-hwaccel_output_format", "cuda",
-        "-i", "temp/result.avi",
+        "-i", "temp/"+str(base_name)+"-result.avi",
         "-i", args.audio,
         # "-c:v", "h264_nvenc",
         args.outfile,
