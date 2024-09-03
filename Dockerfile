@@ -10,7 +10,7 @@ ENV TZ=UTC \
 # Combine commands to reduce layers and cleanup apt cache to reduce image size
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
     apt-get update && \
-    apt-get install -y software-properties-common git ca-certificates libgl1 --no-install-recommends && \
+    apt-get install -y software-properties-common git wget ca-certificates libgl1 --no-install-recommends && \
     add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
     add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && \
@@ -22,11 +22,11 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone &
     rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container to /app
-# WORKDIR /app
+WORKDIR /app
 
 # Copy the requirements.txt file from the host machine's current directory
 # to the working directory in the container
-COPY requirements.txt /
+COPY requirements.txt /app/
 
 # Use pip to install the Python dependencies from requirements.txt
 # and install additional Python packages in a single RUN command
@@ -39,7 +39,12 @@ RUN python3.9 -m pip install --no-cache-dir -r requirements.txt && \
 #COPY . /app
 
 # Change permissions of the app directory
-#RUN chmod 777 /app
+RUN chmod 777 /app
+
+# Download the model file into the image
+RUN mkdir -p /root/.cache/torch/hub/checkpoints/ && \
+    wget https://dl.fbaipublicfiles.com/adiyoss/denoiser/dns64-a7761ff99a7d5bb6.th -O /root/.cache/torch/hub/checkpoints/dns64-a7761ff99a7d5bb6.th
+
 
 # Set the default command to run when the container starts
 #CMD ["python", "app.py", "demo.mp4"]

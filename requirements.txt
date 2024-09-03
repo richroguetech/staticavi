@@ -39,7 +39,7 @@ fsspec>=2022.11.0
 absl-py>=1.2.0
 audioread
 uvicorn>=0.21.1
-colorama>=0.4.5op
+colorama>=0.4.5
 pyworld==0.3.2
 httpx
 onnxruntime; sys_platform == 'darwin'
@@ -58,4 +58,4 @@ opencv-python==4.6.0.66
 torch==1.12.1+cu116
 --extra-index-url=https://download.pytorch.org/whl/cu116
 torchvision==0.13.1+cu116
-mediapipe==0.8.11
+mediapipe==0.9.1.0
