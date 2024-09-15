@@ -87,6 +87,6 @@ def voice(input_path):
     else:
         f0 = 0
 
-    command = f"python Voice/tools/infer_cli.py --f0up_key {f0} --input_path {edit_voice} --index_path Requirements/Models/added_IVF963_Flat_nprobe_1_justhire_v3_v2.index --f0method harvest --opt_path {output_audio} --model_name 'justhire_v3.pth' --index_rate 0.66 --device cuda:0 --is_half 'True' --filter_radius 3 --resample_sr 0 --rms_mix_rate 1 --protect 0.33"
+    command = f"python Voice/tools/infer_cli.py --f0up_key {f0} --input_path {edit_voice} --index_path Requirements/Models/added_IVF963_Flat_nprobe_1_justhire_v3_v2.index --f0method harvest --opt_path {output_audio} --model_name justhire_v3.pth --index_rate 0.66 --device cuda:0 --is_half 'True' --filter_radius 3 --resample_sr 0 --rms_mix_rate 1 --protect 0.33"
     subprocess.run(command, shell=True)
     noise_reduction(output_audio, output_audio)

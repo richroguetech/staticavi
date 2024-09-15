@@ -210,13 +210,13 @@ def process_dynamic_avi(start_cropping_time):
 
 # Check if the script was called with the required argument (name of the video file)
 if len(sys.argv) < 2:
-    print("Usage: python script.py <name_of_video_file> [<staticAvi>]")
+    print("Usage: python app.py <name_of_video_file> [<staticAvi>]")
     sys.exit(1)
 
 original_video_file_name = sys.argv[1]
 static_avi = sys.argv[2] if len(sys.argv) >= 3 else "true"  # Set your default value here
 
-useAWSstaging()
+#useAWSstaging()
 # Set up the boto3 client with the AWS credentials
 
 s3_client = boto3.client(
@@ -270,4 +270,4 @@ else:
     process_dynamic_avi(start_cropping_time)
 
 send_video_to_aws(processed_video_name, original_video_file_name)
-sys.exit(1)
+print("==== end ====")
