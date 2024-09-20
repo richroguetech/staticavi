@@ -1,6 +1,4 @@
-# Import required libraries and modules for handling video, audio, and system operations 
-# 
-from Voice.adaptive_voice_conversion import voice
+# Import required libraries and modules for handling video, audio, and system operations
 from Face.face_conversion import face
 from moviepy.editor import VideoFileClip, AudioFileClip
 import sys
@@ -10,19 +8,21 @@ import time
 import shutil
 import subprocess
 import boto3
+import requests  # Used for making HTTP requests
+import json  # Used for working with JSON data
 
 from Wav2Lip.models import Wav2Lip
-is_aws_file = True
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-SOURCE_BUCKET_NAME = os.getenv('SOURCE_BUCKET_NAME')
-DESTINATION_BUCKET_NAME = os.getenv('DESTINATION_BUCKET_NAME')
-
-def useAWSstaging():
-    global AWS_ACCESS_KEY_ID
-    global AWS_SECRET_ACCESS_KEY
-    global SOURCE_BUCKET_NAME
-    global DESTINATION_BUCKET_NAME
+is_aws_file = True   # set To TRUE 6/24
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', 'AKIARGI7UDIOZ43FVD5Y')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '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')
+SOURCE_BUCKET_NAME = os.getenv('SOURCE_BUCKET_NAME', 'justhire-demo-video-bucket')
+DESTINATION_BUCKET_NAME = os.getenv('DESTINATION_BUCKET_NAME', 'justhire-demo-video-bucket-avi')
+XI_API_KEY =  os.getenv('XI_API_KEY', 'sk_0fe86672f05e28c37da1bb0aeb7343cdee0789caf98edd11')  # Your API key for authentication
+VOICE_ID = os.getenv('VOICE_ID', '1zGYi4WfY5HVoBwR6zXt')
+# Set default values for the video and image assets
+AVI_SOURCE_VIDEO = os.getenv('AVI_SOURCE_VIDEO', 'input_vid.mp4')
+AVI_SOURCE_IMAGE = os.getenv('AVI_SOURCE_IMAGE', 'avi_480.jpg')
+AVI_TEMPLATE_BUCKET = os.getenv('AVI_TEMPLATE_BUCKET', 'avi-template-bucket')
 
 def setAwsFalse():
     global is_aws_file  # Use the global keyword to modify the global variable
@@ -98,27 +98,106 @@ def download_from_aws(original_video_file_name):
         print("finished Downloading video...")
     return processed_video_name
 
+def download_avi_assets():
+    print("Source bucket name:", AVI_TEMPLATE_BUCKET)
+    print("AVI template Source Video:", AVI_SOURCE_VIDEO)
+    print("AVI template Source Image:", AVI_SOURCE_IMAGE)
+    # If the original video file name has no extension, download the video
+    print(AVI_SOURCE_VIDEO)
+    s3_client.download_file(AVI_TEMPLATE_BUCKET, AVI_SOURCE_VIDEO, 'Wav2Lip/input_vid.mp4')
+    print(AVI_SOURCE_IMAGE)
+    s3_client.download_file(AVI_TEMPLATE_BUCKET, AVI_SOURCE_IMAGE, 'Face/avi.jpeg')
+    return True
+
 def send_video_to_aws(processed_video_name, original_video_file_name):
     if not is_aws_file:
         print("Not an AWS FILE")
         return
     else:
         final_output_path = str(processed_video_name) + "_final_output.mp4"
+        print(original_video_file_name)
         print("---------------------------------")
         s3_client.upload_file(final_output_path, DESTINATION_BUCKET_NAME, original_video_file_name)
         ## cleanup final file after uploading
         if os.path.exists(final_output_path):
             os.remove(final_output_path)
+        if os.path.exists(processed_video_name):
+            os.remove(processed_video_name)
+
+def alter_static_avi_voice(static_audio_filename):
+    # Define constants for the script
+    CHUNK_SIZE = 1024  # Size of chunks to read/write at a time
+
+    PATH_TO_INPUT_AUDIO = os.path.join("Temp", static_audio_filename)
+    AUDIO_FILE_PATH = PATH_TO_INPUT_AUDIO  # Path to the input audio file
+
+    static_audio_filename = f"{base_name}-audio-converted.wav"
+    PATH_TO_OUTPUT_AUDIO = os.path.join("Temp", static_audio_filename)
+    OUTPUT_PATH = PATH_TO_OUTPUT_AUDIO  # Path to save the output audio file
+
+    print("xi, apikey", XI_API_KEY)
+
+    # Construct the URL for the Speech-to-Speech API request
+    sts_url = f"https://api.elevenlabs.io/v1/speech-to-speech/{VOICE_ID}/stream"
+
+    # Set up headers for the API request, including the API key for authentication
+    headers = {
+        "Accept": "application/json",
+        "xi-api-key": XI_API_KEY
+    }
+    # Construct the URL for the Speech-to-Speech API request
+    sts_url = f"https://api.elevenlabs.io/v1/speech-to-speech/{VOICE_ID}/stream"
+
+    # Set up headers for the API request, including the API key for authentication
+    headers = {
+        "Accept": "application/json",
+        "xi-api-key": XI_API_KEY
+    }
+
+    # Set up the data payload for the API request, including model ID and voice settings
+    # Note: voice settings are converted to a JSON string
+    data = {
+        "model_id": "eleven_english_sts_v2",
+        "voice_settings": json.dumps({
+            "stability": 0.5,
+            "similarity_boost": 0.0,
+            "style": 0.0,
+            "use_speaker_boost": True
+        })
+    }
+
+    # Set up the files to send with the request, including the input audio file
+    files = {
+        "audio": open(AUDIO_FILE_PATH, "rb")
+    }
+
+    # Make the POST request to the STS API with headers, data, and files, enabling streaming response
+    response = requests.post(sts_url, headers=headers, data=data, files=files, stream=True)
+
+    # Check if the request was successful
+    if response.ok:
+        # Open the output file in write-binary mode
+        with open(OUTPUT_PATH, "wb") as f:
+            # Read the response in chunks and write to the file
+            for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
+                f.write(chunk)
+        # Inform the user of success
+        print("Audio stream saved successfully.")
+    else:
+        # Print the error message if the request was not successful
+        print(response.text)
+
 
 def process_static_avi(start_cropping_time):
     # Start the voice conversion process and time it
     print("start of static avi")
 
     # Consider only the first file
-    static_audio_filename = f"{base_name}-audio-converted.wav"
-
-    PATH_TO_YOUR_AUDIO = os.path.join("Temp", static_audio_filename)
-    print(PATH_TO_YOUR_AUDIO)
+    static_audio_filename = f"{base_name}-audio.wav"
+    # this file is what needs to be converted from ieleven labs.....
+    alter_static_avi_voice(static_audio_filename)
+    static_audio_filename_output = f"{base_name}-audio-converted.wav"
+    PATH_TO_YOUR_AUDIO = os.path.join("Temp", static_audio_filename_output)
 
     # Load audio with specified sampling rate
     import librosa
@@ -216,15 +295,17 @@ if len(sys.argv) < 2:
 original_video_file_name = sys.argv[1]
 static_avi = sys.argv[2] if len(sys.argv) >= 3 else "true"  # Set your default value here
 
-#useAWSstaging()
 # Set up the boto3 client with the AWS credentials
 
 s3_client = boto3.client(
     's3',
+    region_name='eu-west-2',
     aws_access_key_id=AWS_ACCESS_KEY_ID,
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY
 )
 
+#copy avi input data
+download_avi_assets()
 # Downloading the video from the source S3 bucket
 processed_video_name = download_from_aws(original_video_file_name)  #for s3 this is the output bucket folder
 start_time = time.time()
@@ -257,12 +338,6 @@ start_cropping_time = time.time()
 clip = VideoFileClip(video_path)
 clip.audio.write_audiofile(audio_output_path)  # Extract and save audio
 clip.without_audio().write_videofile(video_output_path)  # Save video without audio
-
-# Start the voice conversion process and time it
-start_voice_time = time.time()
-voice(audio_output_path)
-end_voice_time = time.time()
-voice_time = end_voice_time - start_voice_time
 
 if static_avi.lower() == 'true':
     process_static_avi(start_cropping_time)
