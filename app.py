@@ -8,6 +8,7 @@ import time
 import shutil
 import subprocess
 import boto3
+import ffmpeg
 import requests  # Used for making HTTP requests
 import json  # Used for working with JSON data
 
@@ -23,6 +24,7 @@ VOICE_ID = os.getenv('VOICE_ID', '1zGYi4WfY5HVoBwR6zXt')
 AVI_SOURCE_VIDEO = os.getenv('AVI_SOURCE_VIDEO', 'input_vid.mp4')
 AVI_SOURCE_IMAGE = os.getenv('AVI_SOURCE_IMAGE', 'avi_480.jpg')
 AVI_TEMPLATE_BUCKET = os.getenv('AVI_TEMPLATE_BUCKET', 'avi-template-bucket')
+CONVERT_SAFARI = os.getenv('CONVERT_SAFARI', True)
 
 def setAwsFalse():
     global is_aws_file  # Use the global keyword to modify the global variable
@@ -187,6 +189,40 @@ def alter_static_avi_voice(static_audio_filename):
         # Print the error message if the request was not successful
         print(response.text)
 
+def convert_mp4_to_h264_aac(input_file, output_file):
+    if not CONVERT_SAFARI:
+        return
+
+    # Validate if the input file exists
+    if not os.path.exists(input_file):
+        print(f"Input file '{input_file}' does not exist.")
+        return
+
+    command = [
+        'ffmpeg',
+        '-i', input_file,
+        '-c:v', 'libx264',
+        '-c:a', 'aac',
+        '-strict', 'experimental',
+        output_file
+    ]
+
+    try:
+        # Run the ffmpeg conversion
+        subprocess.run(command, check=True)
+
+        # Replace original file with the converted file
+        os.replace(output_file, input_file)
+        print(f"Conversion successful: {input_file}")
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error during conversion: {e}")
+
+        # Ensure output file is cleaned up on error
+        if os.path.exists(output_file):
+            os.remove(output_file)
+        print(f"Failed conversion output file removed: {output_file}")
+
 
 def process_static_avi(start_cropping_time):
     # Start the voice conversion process and time it
@@ -283,7 +319,6 @@ def process_dynamic_avi(start_cropping_time):
     print(f"Script execution time: {round(duration, 2)}s")
     print("From that: ")
     print(f"- Cropping time: {round(cropping_time, 2)}s")
-    print(f"- Voice conversion time: {round(voice_time, 2)}s")
     print(f"- Face conversion time: {round(face_time, 2)}s")
     return True
 
@@ -311,8 +346,11 @@ processed_video_name = download_from_aws(original_video_file_name)  #for s3 this
 start_time = time.time()
 
 if is_aws_file:
+    convert_mp4_to_h264_aac(processed_video_name, 'converted.mp4')
     shutil.copyfile(processed_video_name, 'Temp/' + str(processed_video_name) + '.mp4')
 else:
+    print("here2")
+    convert_mp4_to_h264_aac(original_video_file_name, 'converted.mp4')
     shutil.copyfile(original_video_file_name, 'Temp/' + str(processed_video_name) + '.mp4')
 
 local_video_path = os.path.join('Temp/' + str(processed_video_name) + '.mp4')
