@@ -228,9 +228,10 @@ def process_static_avi(start_cropping_time):
     # Consider only the first file
     static_audio_filename = f"{base_name}-audio.wav"
     # this file is what needs to be converted from ieleven labs.....
-    alter_static_avi_voice(static_audio_filename)
-    static_audio_filename_output = f"{base_name}-audio-converted.wav"
-    PATH_TO_YOUR_AUDIO = os.path.join("Temp", static_audio_filename_output)
+    #RBRB alter_static_avi_voice(static_audio_filename)
+    #RBRB static_audio_filename_output = f"{base_name}-audio-converted.wav"
+    #RBRB PATH_TO_YOUR_AUDIO = os.path.join("Temp", static_audio_filename_output)
+    PATH_TO_YOUR_AUDIO = os.path.join("Temp", static_audio_filename)
 
     # Load audio with specified sampling rate
     import librosa
@@ -379,5 +380,5 @@ if static_avi.lower() == 'true':
 else:
     process_dynamic_avi(start_cropping_time)
 
-send_video_to_aws(processed_video_name, original_video_file_name)
+####RBRB send_video_to_aws(processed_video_name, original_video_file_name)
 print("==== end ====")
