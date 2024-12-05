@@ -13,6 +13,8 @@ import json  # Used for working with JSON data
 
 from Wav2Lip.models import Wav2Lip
 is_aws_file = True   # set To TRUE 6/24
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', 'AKIARGI7UDIOZ43FVD5Y')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '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')
 SOURCE_BUCKET_NAME = os.getenv('SOURCE_BUCKET_NAME', 'justhire-demo-video-bucket')
 DESTINATION_BUCKET_NAME = os.getenv('DESTINATION_BUCKET_NAME', 'justhire-demo-video-bucket-avi')
 XI_API_KEY =  os.getenv('XI_API_KEY', 'sk_0fe86672f05e28c37da1bb0aeb7343cdee0789caf98edd11')  # Your API key for authentication
@@ -338,7 +340,7 @@ s3_client = boto3.client(
 )
 
 #copy avi input data
-download_avi_assets()
+# download_avi_assets() RBRBRB
 # Downloading the video from the source S3 bucket
 processed_video_name = download_from_aws(original_video_file_name)  #for s3 this is the output bucket folder
 start_time = time.time()
