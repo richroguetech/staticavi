@@ -11,7 +11,6 @@ import boto3
 import requests  # Used for making HTTP requests
 import json  # Used for working with JSON data
 
-from Wav2Lip.models import Wav2Lip
 is_aws_file = True   # set To TRUE 6/24
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', 'AKIARGI7UDIOZ43FVD5Y')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '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')
@@ -82,6 +81,28 @@ def run_inference(nosmooth, static_audio_filename, base_name):
         subprocess.run(command, cwd="Wav2Lip")
         print("wav2lip processing....")
     return True
+
+def run_inference2(nosmooth, static_audio_filename, base_name):
+    pad_top = -10  # @param {type:"integer"}
+    pad_bottom = 30  # @param {type:"integer"}
+    pad_left = 0  # @param {type:"integer"}
+    pad_right = 0  # @param {type:"integer"}
+    rescaleFactor = 1  # @param {type:"integer"}
+
+    if not nosmooth:
+        command = [
+            "python", "run.py",
+            "--video_file", "input_vid_wonder.mp4",
+            "--vocal_file", "dianetest.mp3",
+            "--quality", "Enhanced",
+            "--output_height", "full resolution",
+            "--output_file", "results/"+str(base_name)+"_final_output.mp4"
+        ]
+        print("ezwav2lip processing started....")
+        subprocess.run(command, cwd="Easy-Wav2Lip")
+        print("ezwav2lip processing....")
+    return True
+
 
 
 def download_from_aws(original_video_file_name):
@@ -275,6 +296,60 @@ def process_static_avi(start_cropping_time):
     print(f"- Cropping time: {round(cropping_time, 2)}s")
     return True
 
+
+def process_static_av_ezwav2lip(start_cropping_time):
+    # Start the voice conversion process and time it
+    print("start of static avi with ezwav2 lip")
+
+    # Consider only the first file
+    print(base_name)
+    static_audio_filename = f"{base_name}-audio.wav"
+    # this file is what needs to be converted from ieleven labs.....
+    #RBRB alter_static_avi_voice(static_audio_filename)
+    #RBRB static_audio_filename_output = f"{base_name}-audio-converted.wav"
+    #RBRB PATH_TO_YOUR_AUDIO = os.path.join("Temp", static_audio_filename_output)
+    PATH_TO_YOUR_AUDIO = os.path.join("Temp", static_audio_filename)
+
+    # Load audio with specified sampling rate
+    #import librosa
+    #audio, sr = librosa.load(PATH_TO_YOUR_AUDIO, sr=None)
+
+    # Save audio with specified sampling rate
+    #import soundfile as sf
+    #sf.write('Wav2Lip/temp/'+ str(static_audio_filename), audio, sr, format='wav')
+
+    # Record the end time of the video cropping process and calculate the duration
+    end_cropping_time = time.time()
+    first_cropping_time = end_cropping_time - start_cropping_time
+    print(first_cropping_time)
+
+    nosmooth = False  # @param {type:"boolean"}
+
+    print("starting to process audio")
+    if not nosmooth:
+        nosmooth = False
+        result = run_inference2(nosmooth, static_audio_filename, base_name)
+        print("Static Avi Result:", result)
+
+    print("cleaning_up")
+    #cleanup_static_avi(base_name)
+    #cleanup_video(base_name)
+
+    # Record the end time of the final merging process and calculate the duration
+    end_cropping_time = time.time()
+    second_cropping_time = end_cropping_time - start_cropping_time
+
+    # Calculate total cropping time and total script execution time
+    cropping_time = first_cropping_time + second_cropping_time
+    end_time = time.time()
+    duration = end_time - start_time
+
+    #print(f"Duration of the video: {round(processed_video.duration, 2)}s")
+    print(f"Script execution time: {round(duration, 2)}s")
+    print("From that: ")
+    print(f"- Cropping time: {round(cropping_time, 2)}s")
+    return True
+
 def process_dynamic_avi(start_cropping_time):
     print("here in dynamic avi")
 
@@ -322,6 +397,9 @@ def process_dynamic_avi(start_cropping_time):
     print(f"- Face conversion time: {round(face_time, 2)}s")
     return True
 
+#  START OF PROGRAM
+#
+#
 # Check if the script was called with the required argument (name of the video file)
 if len(sys.argv) < 2:
     print("Usage: python app.py <name_of_video_file> [<staticAvi>]")
