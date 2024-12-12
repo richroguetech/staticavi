@@ -1,5 +1,5 @@
 # Import required libraries and modules for handling video, audio, and system operations
-from Face.face_conversion import face
+#from Face.face_conversion import face
 from moviepy.editor import VideoFileClip, AudioFileClip
 import sys
 import os
@@ -19,7 +19,7 @@ DESTINATION_BUCKET_NAME = os.getenv('DESTINATION_BUCKET_NAME', 'justhire-demo-vi
 XI_API_KEY =  os.getenv('XI_API_KEY', 'sk_0fe86672f05e28c37da1bb0aeb7343cdee0789caf98edd11')  # Your API key for authentication
 VOICE_ID = os.getenv('VOICE_ID', '1zGYi4WfY5HVoBwR6zXt')
 # Set default values for the video and image assets
-AVI_SOURCE_VIDEO = os.getenv('AVI_SOURCE_VIDEO', 'input_vid.mp4')
+AVI_SOURCE_VIDEO = os.getenv('AVI_SOURCE_VIDEO', 'input_vid_ezws.mp4')
 AVI_SOURCE_IMAGE = os.getenv('AVI_SOURCE_IMAGE', 'avi_480.jpg')
 AVI_TEMPLATE_BUCKET = os.getenv('AVI_TEMPLATE_BUCKET', 'avi-template-bucket')
 CONVERT_SAFARI = os.getenv('CONVERT_SAFARI', True)
@@ -30,21 +30,21 @@ def setAwsFalse():
 
 def cleanup_static_avi(base_name):
     output_filename = str(base_name)+'_final_output.mp4'
-    shutil.copyfile('Wav2Lip/results/'+output_filename, output_filename)
-    os.remove('Wav2Lip/results/' + output_filename)
+    shutil.copyfile('Easy-Wav2Lip/results/'+output_filename, output_filename)
+    os.remove('Easy-Wav2Lip/results/' + output_filename)
     # Cleanup temporary files from the 'Temp' directory
-    print("Cleaning up")
-    for f in glob.glob("Wav2Lip/temp/*"):
+    print("Cleaning up ezwav2lip temp folder")
+    for f in glob.glob("Easy-Wav2Lip/temp/*"):
         print(f)
         filename = os.path.basename(f)
-        if filename.startswith(base_name):
-            print("Removing:", f)
-            os.remove(f)
+        #if filename.startswith(base_name):
+        print("Removing:", f)
+        os.remove(f)
 
 def cleanup_video(base_name):
-    # Cleanup temporary files from the 'Temp' directory
+    # Cleanup temporary files from the 'work' directory
     print("Cleaning up")
-    for f in glob.glob("Temp/*"):
+    for f in glob.glob("work/*"):
         filename = os.path.basename(f)
         if filename.startswith(base_name):
             os.remove(f)
@@ -61,49 +61,28 @@ def remove_suffix(filename, suffix='_final_output.mp4'):
         return filename[:-len(suffix)]
     return filename
 
-def run_inference(nosmooth, static_audio_filename, base_name):
-    pad_top = -10  # @param {type:"integer"}
-    pad_bottom = 30  # @param {type:"integer"}
-    pad_left = 0  # @param {type:"integer"}
-    pad_right = 0  # @param {type:"integer"}
-    rescaleFactor = 1  # @param {type:"integer"}
-    if not nosmooth:
-        command = [
-            "python", "inference.py",
-            "--checkpoint_path", "checkpoints/wav2lip_gan.pth",
-            "--face", "input_vid.mp4",
-            "--audio", "temp/"+str(static_audio_filename),
-            "--pads", str(pad_top), str(pad_bottom), str(pad_left), str(pad_right),
-            "--resize_factor", str(rescaleFactor),
-            "--outfile", "results/"+str(base_name)+"_final_output.mp4"
-        ]
-        print("wav2lip processing started....")
-        subprocess.run(command, cwd="Wav2Lip")
-        print("wav2lip processing....")
-    return True
-
 def run_inference2(nosmooth, static_audio_filename, base_name):
     pad_top = -10  # @param {type:"integer"}
     pad_bottom = 30  # @param {type:"integer"}
     pad_left = 0  # @param {type:"integer"}
     pad_right = 0  # @param {type:"integer"}
     rescaleFactor = 1  # @param {type:"integer"}
+    #"--pads", str(pad_top), str(pad_bottom), str(pad_left), str(pad_right),
+    #"--resize_factor", str(rescaleFactor),
 
     if not nosmooth:
         command = [
             "python", "run.py",
-            "--video_file", "input_vid_wonder.mp4",
-            "--vocal_file", "dianetest.mp3",
+            "--video_file", "input_vid.mp4",
+            "--vocal_file", str(base_name)+"-audio-converted.wav",
             "--quality", "Enhanced",
-            "--output_height", "full resolution",
-            "--output_file", "results/"+str(base_name)+"_final_output.mp4"
+            "--output_height", "full resolution"
         ]
         print("ezwav2lip processing started....")
+        print(str(static_audio_filename))
         subprocess.run(command, cwd="Easy-Wav2Lip")
         print("ezwav2lip processing....")
     return True
-
-
 
 def download_from_aws(original_video_file_name):
     print("Source bucket name:", SOURCE_BUCKET_NAME)
@@ -126,9 +105,7 @@ def download_avi_assets():
     print("AVI template Source Image:", AVI_SOURCE_IMAGE)
     # If the original video file name has no extension, download the video
     print(AVI_SOURCE_VIDEO)
-    s3_client.download_file(AVI_TEMPLATE_BUCKET, AVI_SOURCE_VIDEO, 'Wav2Lip/input_vid.mp4')
-    print(AVI_SOURCE_IMAGE)
-    s3_client.download_file(AVI_TEMPLATE_BUCKET, AVI_SOURCE_IMAGE, 'Face/avi.jpeg')
+    s3_client.download_file(AVI_TEMPLATE_BUCKET, AVI_SOURCE_VIDEO, 'Easy-Wav2Lip/input_vid.mp4')
     return True
 
 def send_video_to_aws(processed_video_name, original_video_file_name):
@@ -150,11 +127,11 @@ def alter_static_avi_voice(static_audio_filename):
     # Define constants for the script
     CHUNK_SIZE = 1024  # Size of chunks to read/write at a time
 
-    PATH_TO_INPUT_AUDIO = os.path.join("Temp", static_audio_filename)
+    PATH_TO_INPUT_AUDIO = os.path.join("work", static_audio_filename)
     AUDIO_FILE_PATH = PATH_TO_INPUT_AUDIO  # Path to the input audio file
 
     static_audio_filename = f"{base_name}-audio-converted.wav"
-    PATH_TO_OUTPUT_AUDIO = os.path.join("Temp", static_audio_filename)
+    PATH_TO_OUTPUT_AUDIO = os.path.join("work", static_audio_filename)
     OUTPUT_PATH = PATH_TO_OUTPUT_AUDIO  # Path to save the output audio file
 
     print("xi, apikey", XI_API_KEY)
@@ -243,18 +220,16 @@ def convert_mp4_to_h264_aac(input_file, output_file):
             os.remove(output_file)
         print(f"Failed conversion output file removed: {output_file}")
 
-
-def process_static_avi(start_cropping_time):
+def process_audio_encoding(base_name):
     # Start the voice conversion process and time it
-    print("start of static avi")
+    print("start of static avi audio encoding")
 
     # Consider only the first file
     static_audio_filename = f"{base_name}-audio.wav"
     # this file is what needs to be converted from ieleven labs.....
-    #RBRB alter_static_avi_voice(static_audio_filename)
-    #RBRB static_audio_filename_output = f"{base_name}-audio-converted.wav"
-    #RBRB PATH_TO_YOUR_AUDIO = os.path.join("Temp", static_audio_filename_output)
-    PATH_TO_YOUR_AUDIO = os.path.join("Temp", static_audio_filename)
+    alter_static_avi_voice(static_audio_filename)
+    static_audio_filename_output = f"{base_name}-audio-converted.wav"
+    PATH_TO_YOUR_AUDIO = os.path.join("work", static_audio_filename_output)
 
     # Load audio with specified sampling rate
     import librosa
@@ -262,62 +237,28 @@ def process_static_avi(start_cropping_time):
 
     # Save audio with specified sampling rate
     import soundfile as sf
-    sf.write('Wav2Lip/temp/'+ str(static_audio_filename), audio, sr, format='wav')
+    # this stores teh converted audio file
+    sf.write('Easy-Wav2Lip/'+ str(static_audio_filename_output), audio, sr, format='wav')
+    print("end of static avi audio encoding")
 
-    # Record the end time of the video cropping process and calculate the duration
-    end_cropping_time = time.time()
-    first_cropping_time = end_cropping_time - start_cropping_time
-    print(first_cropping_time)
-
-    nosmooth = False  # @param {type:"boolean"}
-
-    print("starting to process audio")
-    if not nosmooth:
-        nosmooth = False
-        result = run_inference(nosmooth, static_audio_filename, base_name)
-        print("Static Avi Result:", result)
-
-    print("cleaning_up")
-    cleanup_static_avi(base_name)
-    cleanup_video(base_name)
-
-    # Record the end time of the final merging process and calculate the duration
-    end_cropping_time = time.time()
-    second_cropping_time = end_cropping_time - start_cropping_time
-
-    # Calculate total cropping time and total script execution time
-    cropping_time = first_cropping_time + second_cropping_time
-    end_time = time.time()
-    duration = end_time - start_time
-
-    #print(f"Duration of the video: {round(processed_video.duration, 2)}s")
-    print(f"Script execution time: {round(duration, 2)}s")
-    print("From that: ")
-    print(f"- Cropping time: {round(cropping_time, 2)}s")
-    return True
-
-
-def process_static_av_ezwav2lip(start_cropping_time):
-    # Start the voice conversion process and time it
-    print("start of static avi with ezwav2 lip")
-
+def process_audio_encoding_test(base_name):
     # Consider only the first file
-    print(base_name)
-    static_audio_filename = f"{base_name}-audio.wav"
-    # this file is what needs to be converted from ieleven labs.....
-    #RBRB alter_static_avi_voice(static_audio_filename)
-    #RBRB static_audio_filename_output = f"{base_name}-audio-converted.wav"
-    #RBRB PATH_TO_YOUR_AUDIO = os.path.join("Temp", static_audio_filename_output)
-    PATH_TO_YOUR_AUDIO = os.path.join("Temp", static_audio_filename)
-
+    static_audio_filename = f"{base_name}-audio-converted.wav"
+    PATH_TO_YOUR_AUDIO = os.path.join("work", static_audio_filename)
     # Load audio with specified sampling rate
-    #import librosa
-    #audio, sr = librosa.load(PATH_TO_YOUR_AUDIO, sr=None)
+    import librosa
+    audio, sr = librosa.load(PATH_TO_YOUR_AUDIO, sr=None)
 
     # Save audio with specified sampling rate
-    #import soundfile as sf
-    #sf.write('Wav2Lip/temp/'+ str(static_audio_filename), audio, sr, format='wav')
+    import soundfile as sf
+    sf.write('Easy-Wav2Lip/'+ str(static_audio_filename), audio, sr, format='wav')
+    print("end of static avi audio encoding")
 
+def process_static_av_ezwav2lip(start_cropping_time):
+
+    # remove_test from  the following line RBRB
+    process_audio_encoding(base_name)
+    static_audio_filename = f"{base_name}-audio-converted.wav"
     # Record the end time of the video cropping process and calculate the duration
     end_cropping_time = time.time()
     first_cropping_time = end_cropping_time - start_cropping_time
@@ -332,8 +273,8 @@ def process_static_av_ezwav2lip(start_cropping_time):
         print("Static Avi Result:", result)
 
     print("cleaning_up")
-    #cleanup_static_avi(base_name)
-    #cleanup_video(base_name)
+    cleanup_static_avi(base_name)
+    cleanup_video(base_name)
 
     # Record the end time of the final merging process and calculate the duration
     end_cropping_time = time.time()
@@ -360,7 +301,8 @@ def process_dynamic_avi(start_cropping_time):
 
     # Start the face conversion process and time it
     start_face_time = time.time()
-    face(video_output_path)
+    #make sure the face process is imported.
+    #face(video_output_path)
     end_face_time = time.time()
     face_time = end_face_time - start_face_time
 
@@ -418,20 +360,19 @@ s3_client = boto3.client(
 )
 
 #copy avi input data
-# download_avi_assets() RBRBRB
+download_avi_assets()
 # Downloading the video from the source S3 bucket
 processed_video_name = download_from_aws(original_video_file_name)  #for s3 this is the output bucket folder
 start_time = time.time()
 
 if is_aws_file:
     convert_mp4_to_h264_aac(processed_video_name, 'converted.mp4')
-    shutil.copyfile(processed_video_name, 'Temp/' + str(processed_video_name) + '.mp4')
+    shutil.copyfile(processed_video_name, 'work/' + str(processed_video_name) + '.mp4')
 else:
-    print("here2")
     convert_mp4_to_h264_aac(original_video_file_name, 'converted.mp4')
-    shutil.copyfile(original_video_file_name, 'Temp/' + str(processed_video_name) + '.mp4')
+    shutil.copyfile(original_video_file_name, 'work/' + str(processed_video_name) + '.mp4')
 
-local_video_path = os.path.join('Temp/' + str(processed_video_name) + '.mp4')
+local_video_path = os.path.join('work/' + str(processed_video_name) + '.mp4')
 
 # Extract the video path from the command line argument
 video_path = local_video_path
@@ -444,8 +385,8 @@ audio_output_filename = processed_video_name + "-audio.wav"
 video_output_filename = processed_video_name + "-video.mp4"
 
 # Define the paths where the intermediate audio and video outputs will be stored
-audio_output_path = os.path.join("Temp", audio_output_filename)
-video_output_path = os.path.join("Temp", video_output_filename)
+audio_output_path = os.path.join("work", audio_output_filename)
+video_output_path = os.path.join("work", video_output_filename)
 
 # Record the start time of the video cropping process
 start_cropping_time = time.time()
@@ -456,9 +397,9 @@ clip.audio.write_audiofile(audio_output_path)  # Extract and save audio
 clip.without_audio().write_videofile(video_output_path)  # Save video without audio
 
 if static_avi.lower() == 'true':
-    process_static_avi(start_cropping_time)
+    process_static_av_ezwav2lip(start_cropping_time)
 else:
     process_dynamic_avi(start_cropping_time)
 
-####RBRB send_video_to_aws(processed_video_name, original_video_file_name)
+send_video_to_aws(processed_video_name, original_video_file_name)
 print("==== end ====")

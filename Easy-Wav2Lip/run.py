@@ -26,7 +26,7 @@ parser.add_argument('--output_file', type=str,
 parser.add_argument('--quality', type=str,
                     help='Output quality', required=False, default=False)
 parser.add_argument('--output_height', type=str,
-                    help='Outputheight video file path', required=False, default=False)
+                    help='output_height video file path', required=False, default=False)
 args = parser.parse_args()
 # retrieve variables from config.ini
 config = configparser.ConfigParser()
@@ -432,7 +432,30 @@ while True:
         with open("last_file.txt", "w") as f:
             f.write(temp_input_video)
         print(f"{output_filename} successfully lip synced! It will be found here:")
-        print(output_video)
+
+        # Extract the base name from vocal_file
+        common_name = vocal_file.split('-audio')[0]
+
+        # Use 'output' as the suffix for clarity
+        suffix = "final_output"
+
+        # Combine the common name and suffix
+        outputfile = f"{common_name}_{suffix}"
+
+        # Ensure the 'results/' directory exists
+        os.makedirs('results', exist_ok=True)
+
+        # Copy the output video to the 'results/' directory
+        shutil.copyfile(output_video, f'results/{outputfile}.mp4')
+
+        # Remove the intermediate files
+        if os.path.isfile(vocal_file):
+            os.remove(vocal_file)
+            print(f"Removed vocal file: {vocal_file}")
+
+        if os.path.isfile(output_video):
+            os.remove(output_video)
+            print(f"Removed video file: {output_video}")
 
         # end processing timer and format the time it took
         end_time = time.time()
