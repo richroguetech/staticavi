@@ -14,13 +14,17 @@ import json  # Used for working with JSON data
 is_aws_file = True   # set To TRUE 6/24
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', 'AKIARGI7UDIOZ43FVD5Y')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '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')
-SOURCE_BUCKET_NAME = os.getenv('SOURCE_BUCKET_NAME', 'justhire-demo-video-bucket')
-DESTINATION_BUCKET_NAME = os.getenv('DESTINATION_BUCKET_NAME', 'justhire-demo-video-bucket-avi')
+SOURCE_BUCKET_NAME = os.getenv('SOURCE_BUCKET_NAME', 'justhire-staging-video-bucket')
+DESTINATION_BUCKET_NAME = os.getenv('DESTINATION_BUCKET_NAME', 'justhire-staging-video-bucket-avi')
 XI_API_KEY =  os.getenv('XI_API_KEY', 'sk_0fe86672f05e28c37da1bb0aeb7343cdee0789caf98edd11')  # Your API key for authentication
 VOICE_ID = os.getenv('VOICE_ID', '1zGYi4WfY5HVoBwR6zXt')
 # Set default values for the video and image assets
 AVI_SOURCE_VIDEO = os.getenv('AVI_SOURCE_VIDEO', 'input_vid_ezws.mp4')
-AVI_SOURCE_IMAGE = os.getenv('AVI_SOURCE_IMAGE', 'avi_480.jpg')
+MODEL_FILE1 = os.getenv('MODEL_FILE1', 'GFPGANv1.4.pth')
+MODEL_FILE2 = os.getenv('MODEL_FILE2', 'Wav2Lip_GAN.pth')
+MODEL_FILE3 = os.getenv('MODEL_FILE3', 'Wav2Lip_GAN.pk1')
+#AVI_SOURCE_IMAGE = os.getenv('AVI_SOURCE_IMAGE', 'avi_480.jpg')
+AVI_CONFIG_FILE = os.getenv('AVI_CONFIG_FILE', 'config.ini')
 AVI_TEMPLATE_BUCKET = os.getenv('AVI_TEMPLATE_BUCKET', 'avi-template-bucket')
 CONVERT_SAFARI = os.getenv('CONVERT_SAFARI', True)
 
@@ -62,20 +66,11 @@ def remove_suffix(filename, suffix='_final_output.mp4'):
     return filename
 
 def run_inference2(nosmooth, static_audio_filename, base_name):
-    pad_top = -10  # @param {type:"integer"}
-    pad_bottom = 30  # @param {type:"integer"}
-    pad_left = 0  # @param {type:"integer"}
-    pad_right = 0  # @param {type:"integer"}
-    rescaleFactor = 1  # @param {type:"integer"}
-    #"--pads", str(pad_top), str(pad_bottom), str(pad_left), str(pad_right),
-    #"--resize_factor", str(rescaleFactor),
-
     if not nosmooth:
         command = [
             "python", "run.py",
             "--video_file", "input_vid.mp4",
             "--vocal_file", str(base_name)+"-audio-converted.wav",
-            "--quality", "Enhanced",
             "--output_height", "full resolution"
         ]
         print("ezwav2lip processing started....")
@@ -102,11 +97,33 @@ def download_from_aws(original_video_file_name):
 def download_avi_assets():
     print("Source bucket name:", AVI_TEMPLATE_BUCKET)
     print("AVI template Source Video:", AVI_SOURCE_VIDEO)
-    print("AVI template Source Image:", AVI_SOURCE_IMAGE)
+    #print("AVI template Source Image:", AVI_SOURCE_IMAGE)
+    print("AVI template config:", AVI_CONFIG_FILE)
     # If the original video file name has no extension, download the video
     print(AVI_SOURCE_VIDEO)
     s3_client.download_file(AVI_TEMPLATE_BUCKET, AVI_SOURCE_VIDEO, 'Easy-Wav2Lip/input_vid.mp4')
+    s3_client.download_file(AVI_TEMPLATE_BUCKET, AVI_CONFIG_FILE, 'Easy-Wav2Lip/config.ini')
     return True
+
+def downloadModelFile(local_file_path, MODEL_FILE):
+    if os.path.exists(local_file_path):
+        print(f"File already exists: {local_file_path}")
+    else:
+        print(f"File not found. Downloading: {local_file_path}")
+        # Download the file from S3
+        s3_client.download_file(AVI_TEMPLATE_BUCKET, MODEL_FILE, local_file_path)
+        print(f"Downloaded file to: {local_file_path}")
+    return True
+
+def downloadModelFiles():
+   print("Downloading model files:", AVI_TEMPLATE_BUCKET)
+   local_file_path1 = "Easy-Wav2Lip/checkpoints/GFPGANv1.4.pth"
+   local_file_path2 = "Easy-Wav2Lip/checkpoints/Wav2Lip_GAN.pth"
+   local_file_path3 = "Easy-Wav2Lip/checkpoints/Wav2Lip_GAN.pk1"
+   downloadModelFile(local_file_path1, MODEL_FILE1)
+   downloadModelFile(local_file_path2, MODEL_FILE2)
+   downloadModelFile(local_file_path3, MODEL_FILE3)
+   return True
 
 def send_video_to_aws(processed_video_name, original_video_file_name):
     if not is_aws_file:
@@ -359,6 +376,12 @@ s3_client = boto3.client(
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY
 )
 
+downloadModelFiles()
+#command = [
+#    "python", "install.py",
+#]
+#subprocess.run(command, cwd="Easy-Wav2Lip")
+
 #copy avi input data
 download_avi_assets()
 # Downloading the video from the source S3 bucket
@@ -395,6 +418,14 @@ start_cropping_time = time.time()
 clip = VideoFileClip(video_path)
 clip.audio.write_audiofile(audio_output_path)  # Extract and save audio
 clip.without_audio().write_videofile(video_output_path)  # Save video without audio
+
+face_file_path = "Easy-Wav2Lip/last_detected_face.pkl"
+
+if os.path.isfile(face_file_path):  # Check if the path is a file
+    os.remove(face_file_path)  # Remove the file
+    print(f"Removed last detected face file: {face_file_path}")
+else:
+    print(f"File not found: {face_file_path}")
 
 if static_avi.lower() == 'true':
     process_static_av_ezwav2lip(start_cropping_time)

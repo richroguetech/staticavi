@@ -23,8 +23,6 @@ parser.add_argument('--vocal_file', type=str,
                     help='Input audio file path', required=False, default=False)
 parser.add_argument('--output_file', type=str,
                     help='Output video file path', required=False, default=False)
-parser.add_argument('--quality', type=str,
-                    help='Output quality', required=False, default=False)
 parser.add_argument('--output_height', type=str,
                     help='output_height video file path', required=False, default=False)
 args = parser.parse_args()
@@ -42,10 +40,7 @@ if args.vocal_file:
 else:
     vocal_file = config['OPTIONS']['vocal_file']
 
-if args.quality:
-    quality = args.quality
-else:
-    quality = config['OPTIONS']['quality']
+quality = config['OPTIONS']['quality']
 
 if args.output_height:
     output_height = args.output_height
@@ -452,6 +447,10 @@ while True:
         if os.path.isfile(vocal_file):
             os.remove(vocal_file)
             print(f"Removed vocal file: {vocal_file}")
+
+        if os.path.isfile(last_detected_face):
+            os.remove(last_detected_face)
+            print(f"Removed last detected face file: {last_detected_face}")
 
         if os.path.isfile(output_video):
             os.remove(output_video)
