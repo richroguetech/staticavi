@@ -1,72 +1,62 @@
 # Start from an NVIDIA CUDA base image with CUDA 11.3.1
-FROM nvidia/cuda:11.3.1-base-ubuntu20.04
+FROM nvidia/cuda:12.2.0-base-ubuntu20.04
 
+# Set timezone to UTC
 ENV TZ=UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-
-# Install software properties common (allows add-apt-repository)
+# Add PPA for GCC-11 and install dependencies
 RUN apt-get update && \
-    apt-get install -y software-properties-common --no-install-recommends \
-	git \
-	ca-certificates \
-    libgl1
+    apt-get install -y --no-install-recommends software-properties-common build-essential cmake && \
+    add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
+    apt-get install -y --no-install-recommends \
+        gcc-11 g++-11 git ca-certificates libgl1 ffmpeg libsndfile1 libboost-all-dev libx11-dev libxcb1 \
+        libxcb-xinerama0 libx11-6 libxrender1 libxtst6 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Add Ubuntu Toolchain Test PPA for newer gcc versions
-RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test
+# Ensure Universe repository is enabled and install libx11-dev
+RUN add-apt-repository universe && \
+    apt-get update && \
+    apt-get install -y libx11-dev && \
+    apt-get clean
 
-# Install gcc-11 and g++-11 and other essential build tools
-RUN apt-get update && \
-    apt-get install -y --fix-missing gcc-11 g++-11
+# Add PPA for Python 3.10 and install Python dependencies
+RUN add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends python3.10 python3.10-venv python3.10-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Set environment variables to use gcc-11 and g++-11 as the default compilers
-ENV CC /usr/bin/gcc-11
-ENV CXX /usr/bin/g++-11
+# Install pip
+RUN python3.10 -m ensurepip --upgrade && \
+    python3.10 -m pip install "pip<24.1" && \
+    ln -s /usr/bin/python3.10 /usr/bin/python
 
-# Add deadsnakes PPA for newer Python versions
-RUN add-apt-repository ppa:deadsnakes/ppa
-
-# Install Python 3.9 and the development headers
-RUN apt-get update && \
-    apt-get install -y python3.9 python3.9-venv python3.9-dev
-
-# install deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-	ffmpeg libsndfile1
-
-# Ensure that pip is installed and up to date
-# Upgrade pip and set Python 3.9 as the default Python version
-# Upgrade pip and set Python 3.9 as the default Python version
-RUN python3.9 -m ensurepip --upgrade && \
-    python3.9 -m pip install "pip<24.1" && \
-    ln -s /usr/bin/python3.9 /usr/bin/python
-
-# Set the working directory inside the container to /app
+# Set working directory and copy requirements.txt before the app
 WORKDIR /app
-
-# Copy the requirements.txt file from the host machine's current directory
-# to the working directory in the container
 COPY requirements.txt /app/
 
-# Use pip to install the Python dependencies from requirements.txt
-RUN python3.9 -m pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies
+RUN python3.10 -m pip install --no-cache-dir -r requirements.txt
 
-RUN python3.9 -m pip install git+https://github.com/elliottzheng/batch-face.git@master
+# Install additional Python packages
+RUN python3.10 -m pip install git+https://github.com/elliottzheng/batch-face.git@master
+RUN python3.10 -m pip install --no-cache-dir moviepy boto3 cog
 
-# Install onnxruntime-gpu and moviepy separately to ensure clear error messages
-RUN python3.9 -m pip install --no-cache-dir fairseq moviepy boto3 cog
+# Install onnxruntime-gpu for CUDA 12.2
+RUN python3.10 -m pip install onnxruntime-gpu==1.16.0
 
-# Install numpy, opencv-python, torch, and torchvision with CUDA 11.6 support
-RUN python3.9 -m pip install numpy==1.23.4 opencv-python==4.6.0.66
-RUN python3.9 -m pip install --extra-index-url https://download.pytorch.org/whl/cu110 torch==1.12.1+cu116 torchvision==0.13.1+cu116
-# Copy the rest of the current directory contents into the container at /app
+RUN apt-get purge -y build-essential cmake gcc-11 g++-11 && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy the rest of the app
 COPY . /app
-
 RUN chmod 777 /app
 
+# Set PYTHONUNBUFFERED to ensure logs are not buffered
 ENV PYTHONUNBUFFERED=1
 
-# Set the default command to run when the container starts
-#CMD ["python3.9", "app.py", "e0781268-f002-450f-8269-3e1d85902262/78a7b386-c630-45b4-b4b8-504610b99b2a"]
-
-CMD ["python", "app.py", "demo.mp4"]
+# Set the command to run the app
+#CMD ["python", "app.py", "demo.mp4"]
